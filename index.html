@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔍 탐정 추리단 시즌2 – 새로운 사건!</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card2: #21262d;
+    --accent: #f78166;
+    --gold: #e3b341;
+    --green: #3fb950;
+    --blue: #58a6ff;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Nanum Gothic', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 15% 40%, rgba(247,129,102,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 70%, rgba(88,166,255,0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── 헤더 ── */
+  header {
+    position: relative; z-index: 10;
+    text-align: center;
+    padding: 32px 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent), var(--gold));
+    color: #0d1117;
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 2px; padding: 4px 14px;
+    border-radius: 20px; text-transform: uppercase; margin-bottom: 10px;
+  }
+  header h1 { font-size: clamp(20px,5vw,34px); font-weight: 800; color: #fff; }
+  header h1 em { color: var(--gold); font-style: normal; }
+  .subtitle { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+  /* ── 스코어 ── */
+  .scoreboard {
+    display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;
+    padding: 14px 16px; position: relative; z-index: 10;
+  }
+  .score-item {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 10px 18px; text-align: center; min-width: 80px;
+  }
+  .score-item .label { font-size: 11px; color: var(--muted); }
+  .score-item .value { font-size: 22px; font-weight: 800; color: var(--gold); }
+
+  /* ── 게임 영역 ── */
+  #game { max-width: 760px; margin: 0 auto; padding: 0 14px 60px; position: relative; z-index: 10; }
+
+  /* ── 진행 바 ── */
+  .progress-wrap { margin-bottom: 16px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .progress-bar { height: 5px; background: rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); border-radius: 10px; transition: width 0.5s ease; }
+
+  /* ── 사건 카드 ── */
+  .case-card {
+    background: var(--card); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 14px;
+    animation: slideIn 0.35s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+  .case-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .case-num { background: var(--accent); color: #fff; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 20px; }
+  .case-title { font-size: 15px; font-weight: 700; color: var(--gold); flex: 1; }
+
+  .skill-tag { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+  .skill-말    { background: rgba(88,166,255,0.15); color: #58a6ff; border: 1px solid #58a6ff; }
+  .skill-행동  { background: rgba(247,129,102,0.15); color: #f78166; border: 1px solid #f78166; }
+  .skill-경험  { background: rgba(63,185,80,0.15);  color: #3fb950; border: 1px solid #3fb950; }
+  .skill-상황  { background: rgba(210,153,255,0.15); color: #d2a8ff; border: 1px solid #d2a8ff; }
+
+  /* ── 상황 설명 ── */
+  .context-box {
+    background: rgba(255,255,255,0.03); border-left: 3px solid var(--blue);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin-bottom: 14px;
+    font-size: 13px; color: var(--muted); line-height: 1.6;
+  }
+
+  /* ── 대화 버블 ── */
+  .chat-area {
+    background: rgba(255,255,255,0.02); border-radius: 10px;
+    padding: 14px; margin-bottom: 14px;
+  }
+  .chat-bubble { display: flex; gap: 9px; margin-bottom: 11px; }
+  .chat-bubble:last-child { margin-bottom: 0; }
+  .bubble-right { flex-direction: row-reverse; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,0.09);
+    background: var(--card2);
+  }
+  .bubble-content { flex: 1; max-width: 80%; }
+  .bubble-name { font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
+  .bubble-right .bubble-name { text-align: right; }
+  .bubble-text {
+    background: var(--card2); padding: 9px 13px;
+    border-radius: 0 10px 10px 10px;
+    font-size: 13px; line-height: 1.65; color: var(--text);
+    display: inline-block; max-width: 100%;
+  }
+  .bubble-right .bubble-text { border-radius: 10px 0 10px 10px; background: #1c3a2a; }
+
+  /* ── 힌트 단서 ── */
+  .clue-strip {
+    background: rgba(227,179,65,0.05); border: 1px dashed rgba(227,179,65,0.3);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;
+  }
+  .clue-strip-label { font-size: 11px; color: var(--gold); font-weight: 800; letter-spacing: 1px; margin-bottom: 8px; }
+  .clue-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ctag {
+    background: rgba(227,179,65,0.08); border: 1px solid rgba(227,179,65,0.35);
+    color: #e3c57a; font-size: 12px; padding: 4px 12px;
+    border-radius: 20px; cursor: pointer; transition: all 0.18s; user-select: none;
+  }
+  .ctag:hover, .ctag.on { background: var(--gold); color: #0d1117; font-weight: 700; }
+
+  /* ── 질문 ── */
+  .question-box {
+    background: rgba(247,129,102,0.07); border: 1px solid rgba(247,129,102,0.25);
+    border-radius: 10px; padding: 13px 15px; margin-bottom: 12px;
+  }
+  .q-label { font-size: 11px; color: var(--accent); font-weight: 800; letter-spacing: 1px; margin-bottom: 5px; }
+  .question-box p { font-size: 14px; font-weight: 700; line-height: 1.55; }
+
+  /* ── 선택지 ── */
+  .choices { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
+  .choice-btn {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px; padding: 11px 14px;
+    text-align: left; color: var(--text);
+    font-family: 'Nanum Gothic', sans-serif; font-size: 13px;
+    cursor: pointer; transition: all 0.18s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cidx {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; flex-shrink: 0; transition: all 0.18s;
+  }
+  .choice-btn:hover:not(:disabled) { background: rgba(63,185,80,0.08); border-color: var(--green); }
+  .choice-btn:hover:not(:disabled) .cidx { background: var(--green); border-color: var(--green); color: #0d1117; }
+  .choice-btn.correct { background: rgba(63,185,80,0.12); border-color: var(--green); }
+  .choice-btn.correct .cidx { background: var(--green); border-color: var(--green); color: #0d1117; }
+  .choice-btn.wrong { background: rgba(247,129,102,0.08); border-color: var(--accent); opacity: 0.7; }
+  .choice-btn.wrong .cidx { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .choice-btn:disabled { cursor: default; }
+
+  /* ── 피드백 ── */
+  .feedback {
+    padding: 13px 15px; border-radius: 10px; font-size: 13px;
+    line-height: 1.65; margin-bottom: 12px; display: none;
+  }
+  .feedback.show { display: block; animation: slideIn 0.3s ease; }
+  .feedback.correct { background: rgba(63,185,80,0.1); border: 1px solid var(--green); color: #7ee787; }
+  .feedback.wrong { background: rgba(247,129,102,0.08); border: 1px solid var(--accent); color: #ffa198; }
+  .feedback strong { font-size: 14px; display: block; margin-bottom: 4px; }
+
+  /* ── 다음 버튼 ── */
+  .btn-next {
+    display: none; width: 100%; padding: 13px;
+    background: linear-gradient(135deg, var(--accent), #d4513a);
+    border: none; border-radius: var(--radius);
+    color: #fff; font-family: 'Nanum Gothic', sans-serif;
+    font-size: 14px; font-weight: 800; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 1px;
+  }
+  .btn-next.show { display: block; }
+  .btn-next:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(247,129,102,0.35); }
+
+  /* ── 결과 ── */
+  #result { display: none; text-align: center; padding: 40px 20px; }
+  #result.show { display: block; animation: slideIn 0.5s ease; }
+  .result-emoji { font-size: 60px; margin-bottom: 14px; }
+  .result-title { font-size: 26px; font-weight: 800; color: var(--gold); margin-bottom: 6px; }
+  .result-score { font-size: 46px; font-weight: 800; color: #fff; margin: 18px 0; }
+  .result-score span { color: var(--gold); font-size: 28px; }
+  .result-rank {
+    background: var(--card); border-radius: var(--radius);
+    padding: 20px; margin: 18px 0;
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .rank-badge { font-size: 17px; font-weight: 800; color: var(--green); margin-bottom: 5px; }
+  .rank-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  .skill-legend {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin: 16px 0; text-align: left;
+  }
+  .legend-item {
+    background: var(--card2); border-radius: 8px; padding: 10px 12px;
+    font-size: 12px; border: 1px solid rgba(255,255,255,0.06);
+  }
+  .legend-item .li-title { font-weight: 800; margin-bottom: 2px; }
+  .legend-item .li-desc { color: var(--muted); line-height: 1.5; }
+
+  .btn-restart {
+    display: inline-block; padding: 13px 36px;
+    background: linear-gradient(135deg, var(--green), #2ea043);
+    border: none; border-radius: var(--radius);
+    color: #0d1117; font-family: 'Nanum Gothic', sans-serif;
+    font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 8px;
+    transition: all 0.2s;
+  }
+  .btn-restart:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(63,185,80,0.35); }
+
+  @media (max-width: 480px) {
+    .skill-legend { grid-template-columns: 1fr; }
+    .case-card { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">🕵️ 대화 속 단서 찾기 · 심화 활동</div>
+  <h1>탐정 <em>추리단</em> 신규 사건 파일</h1>
+  <p class="subtitle">완전히 새로운 7개 사건 — 대화에서 생략된 내용을 추리하라!</p>
+</header>
+
+<div class="scoreboard">
+  <div class="score-item"><div class="label">점수</div><div class="value" id="scoreVal">0</div></div>
+  <div class="score-item"><div class="label">정답</div><div class="value" id="correctVal" style="color:var(--green)">0</div></div>
+  <div class="score-item"><div class="label">사건</div><div class="value" id="caseVal" style="color:var(--muted)">1/7</div></div>
+</div>
+
+<div id="game">
+  <div class="progress-wrap">
+    <div class="progress-label"><span>수사 진행도</span><span id="pctLabel">0%</span></div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <div id="caseArea"></div>
+  <button class="btn-next" id="btnNext" onclick="nextCase()">다음 사건으로 →</button>
+</div>
+
+<div id="result">
+  <div class="result-emoji" id="rEmoji">🏆</div>
+  <div class="result-title" id="rTitle">수사 완료!</div>
+  <div class="result-score" id="rScore">0<span>점</span></div>
+  <div class="result-rank" id="rRank"></div>
+  <div class="skill-legend">
+    <div class="legend-item"><div class="li-title" style="color:#58a6ff">💬 말에서 단서</div><div class="li-desc">상대방이 한 말의 내용, 단어, 표현에서 생략된 것을 찾아요.</div></div>
+    <div class="legend-item"><div class="li-title" style="color:#f78166">🤸 행동에서 단서</div><div class="li-desc">표정, 몸짓, 행동을 보고 말로 하지 않은 것을 짐작해요.</div></div>
+    <div class="legend-item"><div class="li-title" style="color:#3fb950">💭 경험·배경지식</div><div class="li-desc">내가 겪었거나 알고 있는 것을 떠올려 상황을 짐작해요.</div></div>
+    <div class="legend-item"><div class="li-title" style="color:#d2a8ff">🌍 상황 고려</div><div class="li-desc">언제, 어디서, 누가 말하는지 전체 상황을 생각해요.</div></div>
+  </div>
+  <button class="btn-restart" onclick="restart()">🔄 다시 수사하기</button>
+</div>
+
+<script>
+const CASES = [
+  /* ─── 사건 1 ─── */
+  {
+    id: 1,
+    title: '체육 시간 직전',
+    context: '점심을 먹고 교실로 돌아오는 길, 5교시가 체육인 날이에요.',
+    chat: [
+      { name: '준서', av: '🧒', r: false, t: '아, 배 터지게 먹었다. 너무 많이 먹은 것 같아.' },
+      { name: '소율', av: '👧', r: true,  t: '오늘 5교시 뭐야?' },
+      { name: '준서', av: '🧒', r: false, t: '체육…. (표정이 어두워지며 배를 쓸어내림)' },
+      { name: '소율', av: '👧', r: true,  t: '오늘 좀 힘들겠다, 그치?' },
+    ],
+    clues: ['배 터지게 먹었다', '5교시 체육', '배를 쓸어내림', '표정이 어두워짐'],
+    q: '소율이가 "오늘 좀 힘들겠다"고 말한 이유로 가장 알맞은 것은?',
+    skill: '경험',
+    cs: [
+      '준서가 체육을 싫어한다고 말했기 때문이다.',
+      '밥을 많이 먹은 뒤 격렬하게 운동하면 힘들다는 것을 알고 있기 때문이다.',
+      '오늘 날씨가 너무 덥기 때문이다.',
+      '체육 선생님이 오늘 힘든 수업을 한다고 했기 때문이다.',
+    ],
+    ans: 1,
+    ok: '✅ 정답! 소율이는 <strong>경험과 배경지식</strong>을 활용했어요. 밥을 많이 먹고 나서 뛰면 배가 아프다는 걸 누구나 알죠. 준서의 말과 행동을 보고 상황을 짐작한 거예요!',
+    no: '"배 터지게 먹었다"는 말과 5교시 체육이라는 상황을 연결해봐요. 밥을 많이 먹고 뛰면 어떻게 되죠?',
+  },
+  /* ─── 사건 2 ─── */
+  {
+    id: 2,
+    title: '미술 시간의 탄식',
+    context: '미술 시간, 수채화를 그리던 중 우진이 자리에서 소리가 났어요.',
+    chat: [
+      { name: '우진', av: '😩', r: false, t: '아…….' },
+      { name: '지아', av: '👧', r: true,  t: '왜? 무슨 일이야?' },
+      { name: '우진', av: '😩', r: false, t: '(물통을 손으로 가리키며 아무 말도 안 함)' },
+      { name: '지아', av: '👧', r: true,  t: '아, 물이 엎질러졌구나. 내 휴지 써.' },
+    ],
+    clues: ['아……(탄식)', '물통을 손으로 가리킴', '아무 말도 안 함', '물이 엎질러졌구나'],
+    q: '지아가 "물이 엎질러졌구나"라고 짐작할 수 있었던 건 어떤 단서 때문인가요?',
+    skill: '행동',
+    cs: [
+      '우진이가 물을 엎질렀다고 직접 말했기 때문이다.',
+      '선생님이 우진이 자리에 가봤기 때문이다.',
+      '우진이의 탄식 소리와 물통을 가리키는 행동을 보았기 때문이다.',
+      '미술 시간에는 항상 물을 쏟는 친구가 있기 때문이다.',
+    ],
+    ans: 2,
+    ok: '✅ 맞아요! 지아는 우진이의 <strong>행동(물통을 가리키는 것)</strong>과 <strong>표정(탄식)</strong>을 보고 생략된 내용을 짐작했어요. 탐정 스킬: 행동에서 단서 찾기!',
+    no: '우진이는 직접 말하지 않았어요. 무엇을 "가리켰는지" 행동에 주목해봐요!',
+  },
+  /* ─── 사건 3 ─── */
+  {
+    id: 3,
+    title: '갑자기 조용해진 채팅방',
+    context: '반 단톡방에 공지가 올라왔어요.',
+    chat: [
+      { name: '담임선생님', av: '👩‍🏫', r: false, t: '얘들아, 내일 현장학습 출발 시간이 8시로 바뀌었어. 꼭 확인해줘!' },
+      { name: '유나', av: '😱', r: true,  t: '앗, 저 내일 8시 30분에 치과 예약해놨는데……' },
+      { name: '하린', av: '👦', r: false, t: '유나야, 치과 취소해야겠다.' },
+    ],
+    clues: ['출발 시간 8시로 바뀜', '8시 30분에 치과 예약', '앗(놀람)'],
+    q: '하린이가 "치과 취소해야겠다"고 말한 이유는 무엇인가요?',
+    skill: '상황',
+    cs: [
+      '유나가 치과를 취소하고 싶다고 말했기 때문이다.',
+      '선생님이 치과를 취소하라고 했기 때문이다.',
+      '현장학습 출발 시간(8시)이 치과 예약 시간(8시 30분)보다 빠르기 때문이다.',
+      '치과가 멀리 있기 때문이다.',
+    ],
+    ans: 2,
+    ok: '✅ 딩동댕! <strong>상황 고려</strong>가 핵심이에요. 현장학습이 8시 출발인데 치과가 8시 30분이면 둘 다 갈 수 없는 상황이죠. 두 가지 정보를 합쳐서 짐작한 거예요!',
+    no: '두 가지 시간을 비교해봐요. 현장학습 출발: 8시 / 치과 예약: 8시 30분. 어떤 문제가 생길까요?',
+  },
+  /* ─── 사건 4 ─── */
+  {
+    id: 4,
+    title: '쉬는 시간의 전화',
+    context: '쉬는 시간에 복도에서 은호가 전화를 받고 있어요.',
+    chat: [
+      { name: '은호', av: '📞', r: false, t: '(전화를 끊고 표정이 밝아지며 주먹을 불끈 쥠)' },
+      { name: '재이', av: '👦', r: true,  t: '은호야, 무슨 좋은 일 있어?' },
+      { name: '은호', av: '📞', r: false, t: '응! 아까 시험 본 거 있잖아.' },
+      { name: '재이', av: '👦', r: true,  t: '아, 결과 나왔구나? 잘 봤어?' },
+    ],
+    clues: ['표정이 밝아짐', '주먹을 불끈 쥠', '아까 시험 본 거', '좋은 일 있어?'],
+    q: '재이가 "결과 나왔구나?"라고 짐작한 건 어떤 방법 때문인가요?',
+    skill: '행동',
+    cs: [
+      '은호가 시험 결과가 나왔다고 직접 말했기 때문이다.',
+      '전화를 끊은 뒤 밝아진 표정과 주먹 쥐는 행동을 보고, 전화로 좋은 소식을 들었다고 짐작했기 때문이다.',
+      '재이가 시험 채점을 도왔기 때문이다.',
+      '선생님이 성적을 미리 알려줬기 때문이다.',
+    ],
+    ans: 1,
+    ok: '✅ 훌륭해요! 재이는 은호의 <strong>표정 변화(밝아짐)</strong>와 <strong>행동(주먹을 불끈 쥠)</strong>에서 단서를 찾아 좋은 소식을 들었다고 짐작했어요. 그리고 "아까 시험"이라는 말 단서도 함께 활용했죠!',
+    no: '전화를 끊고 나서 은호의 표정과 행동이 어떻게 바뀌었는지 살펴봐요!',
+  },
+  /* ─── 사건 5 ─── */
+  {
+    id: 5,
+    title: '엄마의 짧은 대답',
+    context: '주말 저녁, 서준이가 엄마에게 말을 걸었어요.',
+    chat: [
+      { name: '서준', av: '🧒', r: false, t: '엄마, 오늘 저녁 뭐야? 나 엄청 배고파.' },
+      { name: '엄마', av: '👩', r: true,  t: '잠깐만.' },
+      { name: '서준', av: '🧒', r: false, t: '(주방에서 뭔가 타는 냄새가 나기 시작함)' },
+      { name: '서준', av: '🧒', r: false, t: '엄마, 혹시 뭔가 타고 있는 거 아니야?' },
+    ],
+    clues: ['잠깐만', '뭔가 타는 냄새', '배고프다', '주방'],
+    q: '서준이가 "뭔가 타고 있는 거 아니야?"라고 말한 이유는 무엇인가요?',
+    skill: '상황',
+    cs: [
+      '서준이가 요리 전문가이기 때문이다.',
+      '엄마가 요리가 타고 있다고 말했기 때문이다.',
+      '주방에서 타는 냄새가 나는 상황에서, 엄마가 요리 중임을 알고 짐작했기 때문이다.',
+      '타는 냄새는 항상 나기 때문이다.',
+    ],
+    ans: 2,
+    ok: '✅ 맞아요! "주방에서 요리 중 + 타는 냄새"라는 <strong>상황</strong>을 종합해서 음식이 타고 있다고 짐작했어요. 탐정 스킬: 상황 고려하기!',
+    no: '엄마가 주방에서 요리 중이라는 상황과 타는 냄새를 연결해봐요!',
+  },
+  /* ─── 사건 6 ─── */
+  {
+    id: 6,
+    title: '갑자기 뛰어나간 친구',
+    context: '점심시간에 급식실에서 있었던 일이에요.',
+    chat: [
+      { name: '민결', av: '🍱', r: false, t: '(밥을 두 숟갈만 먹고 갑자기 벌떡 일어남)' },
+      { name: '나온', av: '👧', r: true,  t: '어? 밥 다 먹었어? 빠르다.' },
+      { name: '민결', av: '🍱', r: false, t: '아니, 좀만 기다려.' },
+      { name: '나온', av: '👧', r: true,  t: '(잠시 후 돌아온 민결을 보며) 혹시 농구대 자리 맡으러 간 거야?' },
+      { name: '민결', av: '🍱', r: false, t: '어, 맞아. 매일 자리가 없잖아.' },
+    ],
+    clues: ['밥 두 숟갈만 먹고 일어남', '점심시간', '매일 자리가 없잖아'],
+    q: '나온이가 "농구대 자리 맡으러 간 거야?"라고 짐작한 건 어떤 방법 때문인가요?',
+    skill: '경험',
+    cs: [
+      '민결이가 농구하러 간다고 말했기 때문이다.',
+      '점심을 빨리 먹으면 항상 농구를 하기 때문이다.',
+      '평소 민결이가 점심시간에 농구를 즐겨 하고, 자리가 부족하다는 경험을 알기 때문이다.',
+      '선생님이 오늘 농구 대회가 있다고 했기 때문이다.',
+    ],
+    ans: 2,
+    ok: '✅ 완벽해요! 나온이는 <strong>경험</strong>을 활용했어요. 평소에 민결이가 점심시간에 농구를 즐겨 하고, 자리가 없어서 빨리 가야 한다는 걸 알고 있었기 때문에 짐작할 수 있었죠!',
+    no: '"매일 자리가 없잖아"라는 말에 힌트가 있어요. 민결이에게 이런 경험이 자주 있었나봐요!',
+  },
+  /* ─── 사건 7 ─── */
+  {
+    id: 7,
+    title: '선생님의 한마디',
+    context: '수업 시간, 선생님이 모둠 발표 준비를 시키셨어요.',
+    chat: [
+      { name: '선생님', av: '👨‍🏫', r: false, t: '자, 오늘 발표 시작하기 전에… 3모둠, 준비됐나요?' },
+      { name: '3모둠 아이들', av: '😅', r: true,  t: '(서로 눈치만 보며 아무도 대답하지 않음)' },
+      { name: '선생님', av: '👨‍🏫', r: false, t: '아, 알겠어요. 4모둠부터 먼저 할까요?' },
+    ],
+    clues: ['서로 눈치만 봄', '아무도 대답 안 함', '알겠어요', '4모둠부터 먼저'],
+    q: '선생님이 "알겠어요"라고 말한 뒤 4모둠부터 시키신 이유는 무엇인가요?',
+    skill: '행동',
+    cs: [
+      '4모둠이 먼저 하겠다고 손을 들었기 때문이다.',
+      '3모둠이 준비가 안 됐다고 직접 말했기 때문이다.',
+      '3모둠 아이들이 서로 눈치만 보며 대답하지 않는 행동을 보고 준비가 안 됐다고 짐작하셨기 때문이다.',
+      '선생님이 원래 4모둠부터 할 계획이었기 때문이다.',
+    ],
+    ans: 2,
+    ok: '✅ 훌륭한 추리! 선생님은 3모둠이 "준비 안 됐어요"라고 말하지 않았어도, <strong>눈치를 보며 대답하지 않는 행동</strong>에서 단서를 찾았어요. 행동이 말보다 더 많은 것을 알려줄 때가 있답니다!',
+    no: '3모둠이 직접 말은 안 했지만, 어떤 행동을 했는지 잘 봐요. 눈치를 보며 아무도 대답하지 않는다는 게 어떤 의미일까요?',
+  },
+];
+
+let idx = 0, score = 0, correct = 0, answered = false;
+
+const SKILL_MAP = {
+  '말': '💬 말에서 단서', '행동': '🤸 행동에서 단서',
+  '경험': '💭 경험·배경지식', '상황': '🌍 상황 고려'
+};
+const SKILL_CLS = { '말': 'skill-말', '행동': 'skill-행동', '경험': 'skill-경험', '상황': 'skill-상황' };
+
+function render() {
+  const c = CASES[idx];
+  answered = false;
+
+  const pct = Math.round(idx / CASES.length * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('pctLabel').textContent = pct + '%';
+  document.getElementById('caseVal').textContent = `${idx + 1}/${CASES.length}`;
+  document.getElementById('btnNext').classList.remove('show');
+
+  const chatHTML = c.chat.map(b => `
+    <div class="chat-bubble${b.r ? ' bubble-right' : ''}">
+      <div class="avatar">${b.av}</div>
+      <div class="bubble-content">
+        <div class="bubble-name">${b.name}</div>
+        <div class="bubble-text">${b.t}</div>
+      </div>
+    </div>`).join('');
+
+  const clueHTML = c.clues.map(cl =>
+    `<span class="ctag" onclick="this.classList.toggle('on')">${cl}</span>`).join('');
+
+  const choicesHTML = c.cs.map((ch, i) => `
+    <button class="choice-btn" onclick="pick(${i})" id="c${i}">
+      <span class="cidx">${String.fromCharCode(65+i)}</span>
+      <span>${ch}</span>
+    </button>`).join('');
+
+  document.getElementById('caseArea').innerHTML = `
+    <div class="case-card">
+      <div class="case-header">
+        <span class="case-num">사건 ${c.id}</span>
+        <span class="case-title">📋 ${c.title}</span>
+        <span class="skill-tag ${SKILL_CLS[c.skill]}">${SKILL_MAP[c.skill]}</span>
+      </div>
+      <div class="context-box">📍 ${c.context}</div>
+      <div class="chat-area">${chatHTML}</div>
+      <div class="clue-strip">
+        <div class="clue-strip-label">🔎 단서 키워드 — 눌러서 확인!</div>
+        <div class="clue-tags">${clueHTML}</div>
+      </div>
+      <div class="question-box">
+        <div class="q-label">🕵️ 추리 질문</div>
+        <p>${c.q}</p>
+      </div>
+      <div class="choices">${choicesHTML}</div>
+      <div class="feedback" id="fb"></div>
+    </div>`;
+}
+
+function pick(i) {
+  if (answered) return;
+  answered = true;
+  const c = CASES[idx];
+  const fb = document.getElementById('fb');
+  document.querySelectorAll('.choice-btn').forEach(b => b.disabled = true);
+  document.getElementById(`c${c.ans}`).classList.add('correct');
+
+  if (i === c.ans) {
+    document.getElementById(`c${i}`).classList.add('correct');
+    fb.innerHTML = `<strong>🎉 정답!</strong>${c.ok}`;
+    fb.className = 'feedback show correct';
+    score += 100; correct++;
+    document.getElementById('scoreVal').textContent = score;
+    document.getElementById('correctVal').textContent = correct;
+  } else {
+    document.getElementById(`c${i}`).classList.add('wrong');
+    fb.innerHTML = `<strong>🤔 아쉬워요!</strong>${c.no}<br><br>정답은 <strong>${String.fromCharCode(65+c.ans)}번</strong>이에요.`;
+    fb.className = 'feedback show wrong';
+  }
+
+  const btn = document.getElementById('btnNext');
+  btn.textContent = idx === CASES.length - 1 ? '🏁 수사 결과 확인하기' : '다음 사건으로 →';
+  btn.classList.add('show');
+}
+
+function nextCase() {
+  idx++;
+  if (idx >= CASES.length) showResult();
+  else { render(); document.getElementById('game').scrollIntoView({ behavior: 'smooth' }); }
+}
+
+function showResult() {
+  document.getElementById('game').style.display = 'none';
+  const r = document.getElementById('result');
+  r.classList.add('show');
+  const pct = Math.round(correct / CASES.length * 100);
+  let emoji, title, badge, desc;
+  if (pct === 100)      { emoji='🏆'; title='완벽한 추리!';      badge='🥇 명탐정 수사관';   desc='7개 사건 모두 정확히 짐작했어요! 말, 행동, 경험, 상황 — 네 가지 단서를 완벽하게 활용한 진짜 탐정이에요.' }
+  else if (pct >= 85)   { emoji='🕵️'; title='훌륭한 수사!';     badge='🥈 베테랑 탐정';    desc='거의 모든 단서를 잡아냈네요. 조금만 더 집중하면 명탐정이에요!' }
+  else if (pct >= 57)   { emoji='🔍'; title='좋은 추리였어요!';  badge='🥉 견습 탐정';     desc='단서를 찾는 감각이 있어요. 말과 행동을 함께 살피는 연습을 더 해봐요!' }
+  else                   { emoji='📖'; title='계속 연습해봐요!'; badge='📌 수습 탐정';     desc='단서 찾기 4가지 방법(말·행동·경험·상황)을 다시 복습하고 도전해봐요!' }
+
+  document.getElementById('rEmoji').textContent = emoji;
+  document.getElementById('rTitle').textContent = title;
+  document.getElementById('rScore').innerHTML = `${score}<span>점</span>`;
+  document.getElementById('rRank').innerHTML = `
+    <div class="rank-badge">${badge}</div>
+    <div class="rank-desc">${desc}</div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted)">
+      정답 ${correct}개 / 전체 ${CASES.length}개 (${pct}%)
+    </div>`;
+  r.scrollIntoView({ behavior: 'smooth' });
+}
+
+function restart() {
+  idx = 0; score = 0; correct = 0; answered = false;
+  document.getElementById('scoreVal').textContent = 0;
+  document.getElementById('correctVal').textContent = 0;
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('game').style.display = 'block';
+  render();
+  document.getElementById('game').scrollIntoView({ behavior: 'smooth' });
+}
+
+render();
+</script>
+</body>
+</html>
