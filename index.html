@@ -113,6 +113,58 @@ body::before {
 }
 .dot.on { background: var(--dc); }
 
+/* ── 잠금 상태 카드 ── */
+.diff-card.locked {
+  cursor: not-allowed;
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+.diff-card.locked:hover {
+  transform: none;
+  border-color: rgba(255,255,255,.07) !important;
+  box-shadow: none !important;
+}
+.lock-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 10px;
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px; padding: 3px 10px;
+  font-size: 11px; color: var(--muted); font-weight: 700;
+}
+.diff-card.cleared .lock-badge {
+  background: rgba(63,185,80,.12);
+  border-color: var(--green);
+  color: var(--green);
+}
+.diff-card.cleared {
+  border-color: rgba(63,185,80,.3) !important;
+}
+
+/* 클리어 배지 */
+.clear-stamp {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--green); color: #0d1117;
+  font-size: 10px; font-weight: 800;
+  padding: 2px 8px; border-radius: 20px;
+  letter-spacing: 1px;
+}
+
+/* 잠금 해제 토스트 */
+.unlock-toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #1a2a1a; border: 1px solid var(--green);
+  color: var(--green); font-size: 13px; font-weight: 800;
+  padding: 12px 24px; border-radius: 30px;
+  z-index: 999; opacity: 0;
+  transition: all .4s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px rgba(63,185,80,.3);
+}
+.unlock-toast.show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
 .tip-box {
   background: var(--card); border: 1px solid rgba(255,255,255,.06);
   border-radius: 10px; padding: 14px 20px; max-width: 600px; width: 100%;
@@ -329,43 +381,8 @@ body::before {
     난이도를 선택하고 사건을 해결하세요.
   </p>
 
-  <div class="diff-grid">
-    <div class="diff-card diff-하" onclick="startGame('하')">
-      <span class="diff-emoji">🟢</span>
-      <div class="diff-label">하</div>
-      <div class="diff-title">탐정 입문</div>
-      <div class="diff-desc">단서 키워드가 표시돼요.<br>선택지가 뚜렷하게 구분돼요.<br>일상적이고 친숙한 상황들.</div>
-      <div class="diff-dots">
-        <div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-      </div>
-    </div>
-    <div class="diff-card diff-중" onclick="startGame('중')">
-      <span class="diff-emoji">🔵</span>
-      <div class="diff-label">중</div>
-      <div class="diff-title">견습 탐정</div>
-      <div class="diff-desc">단서 키워드가 표시돼요.<br>헷갈리는 선택지가 섞여요.<br>조금 더 꼼꼼히 읽어야 해요.</div>
-      <div class="diff-dots">
-        <div class="dot on"></div><div class="dot on"></div><div class="dot"></div><div class="dot"></div>
-      </div>
-    </div>
-    <div class="diff-card diff-상" onclick="startGame('상')">
-      <span class="diff-emoji">🟡</span>
-      <div class="diff-label">상</div>
-      <div class="diff-title">베테랑 탐정</div>
-      <div class="diff-desc">단서 키워드가 <b>없어요</b>.<br>생략된 내용이 깊어져요.<br>두 가지 단서를 합쳐야 해요.</div>
-      <div class="diff-dots">
-        <div class="dot on"></div><div class="dot on"></div><div class="dot on"></div><div class="dot"></div>
-      </div>
-    </div>
-    <div class="diff-card diff-최상" onclick="startGame('최상')">
-      <span class="diff-emoji">🔴</span>
-      <div class="diff-label">최상</div>
-      <div class="diff-title">명탐정</div>
-      <div class="diff-desc">단서 키워드 없음.<br>선택지가 매우 비슷해요.<br>복합적 추리가 필요해요.</div>
-      <div class="diff-dots">
-        <div class="dot on"></div><div class="dot on"></div><div class="dot on"></div><div class="dot on"></div>
-      </div>
-    </div>
+  <div class="diff-grid" id="diffGrid">
+    <!-- 카드는 JS로 렌더링 -->
   </div>
 
   <div class="tip-box">
@@ -378,6 +395,9 @@ body::before {
     </div>
   </div>
 </div>
+
+<!-- 잠금 해제 토스트 -->
+<div class="unlock-toast" id="unlockToast"></div>
 
 <!-- ══════════════ SCREEN 1 : 게임 ══════════════ -->
 <div id="screen-game">
@@ -1062,10 +1082,83 @@ const DATA = {
 ══════════════════════════════════════════════ */
 let curDiff = null, curIdx = 0, score = 0, correct = 0, answered = false;
 
+const DIFF_ORDER = ['하','중','상','최상'];
 const DIFF_COLOR = { 하:'#3fb950', 중:'#58a6ff', 상:'#e3b341', 최상:'#f78166' };
+const DIFF_EMOJI = { 하:'🟢', 중:'🔵', 상:'🟡', 최상:'🔴' };
+const DIFF_NAME  = { 하:'탐정 입문', 중:'견습 탐정', 상:'베테랑 탐정', 최상:'명탐정' };
+const DIFF_DESC  = {
+  하:'단서 키워드가 표시돼요.<br>선택지가 뚜렷하게 구분돼요.<br>일상적이고 친숙한 상황들.',
+  중:'단서 키워드가 표시돼요.<br>헷갈리는 선택지가 섞여요.<br>조금 더 꼼꼼히 읽어야 해요.',
+  상:'단서 키워드가 <b>없어요</b>.<br>생략된 내용이 깊어져요.<br>두 가지 단서를 합쳐야 해요.',
+  최상:'단서 키워드 없음.<br>선택지가 매우 비슷해요.<br>복합적 추리가 필요해요.',
+};
+const DIFF_DOTS  = { 하:1, 중:2, 상:3, 최상:4 };
 const SKILL_MAP  = { 말:'💬 말에서 단서', 행동:'🤸 행동에서 단서', 경험:'💭 경험·배경지식', 상황:'🌍 상황 고려' };
 const SKILL_CLS  = { 말:'skill-말', 행동:'skill-행동', 경험:'skill-경험', 상황:'skill-상황' };
 const SHOW_CLUES = { 하:true, 중:true, 상:false, 최상:false };
+
+/* ── 저장/로드 ── */
+const SAVE_KEY = 'detective_cleared';
+function getCleared() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '[]'); } catch(e) { return []; }
+}
+function setCleared(arr) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(arr)); } catch(e) {}
+}
+function isCleared(diff) { return getCleared().includes(diff); }
+function markCleared(diff) {
+  const arr = getCleared();
+  if (!arr.includes(diff)) { arr.push(diff); setCleared(arr); }
+}
+function isUnlocked(diff) {
+  const idx = DIFF_ORDER.indexOf(diff);
+  if (idx === 0) return true; // '하'는 항상 열림
+  return isCleared(DIFF_ORDER[idx - 1]); // 이전 단계 클리어 필요
+}
+
+/* ── 토스트 ── */
+function showToast(msg) {
+  const t = document.getElementById('unlockToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ── 난이도 선택 화면 렌더 ── */
+function renderDiffGrid() {
+  const cleared = getCleared();
+  const grid = document.getElementById('diffGrid');
+  grid.innerHTML = DIFF_ORDER.map((diff, i) => {
+    const unlocked = isUnlocked(diff);
+    const cleared_this = isCleared(diff);
+    const dots = Array(4).fill(0).map((_, di) =>
+      `<div class="dot${di < DIFF_DOTS[diff] ? ' on' : ''}"></div>`).join('');
+    const lockBadge = unlocked
+      ? (cleared_this ? '<span class="lock-badge">✅ 클리어!</span>' : '')
+      : `<span class="lock-badge">🔒 ${DIFF_ORDER[i-1]} 클리어 후 해금</span>`;
+    const clearStamp = cleared_this ? '<span class="clear-stamp">CLEAR</span>' : '';
+    const lockedClass = unlocked ? '' : ' locked';
+    const clearedClass = cleared_this ? ' cleared' : '';
+    const onclick = unlocked ? `onclick="startGame('${diff}')"` : `onclick="tryLocked('${diff}')"`;
+    return `
+      <div class="diff-card diff-${diff}${lockedClass}${clearedClass}" ${onclick}>
+        ${clearStamp}
+        <span class="diff-emoji">${unlocked ? DIFF_EMOJI[diff] : '🔒'}</span>
+        <div class="diff-label">${diff}</div>
+        <div class="diff-title">${DIFF_NAME[diff]}</div>
+        <div class="diff-desc">${unlocked ? DIFF_DESC[diff] : '이전 단계를 먼저 클리어하세요.'}</div>
+        <div class="diff-dots">${dots}</div>
+        ${lockBadge}
+      </div>`;
+  }).join('');
+}
+
+/* ── 잠긴 카드 클릭 ── */
+function tryLocked(diff) {
+  const idx = DIFF_ORDER.indexOf(diff);
+  const prev = DIFF_ORDER[idx - 1];
+  showToast(`🔒 "${prev}" 난이도를 먼저 클리어하세요!`);
+}
 
 /* ── 화면 전환 ── */
 function show(id) {
@@ -1073,10 +1166,12 @@ function show(id) {
     const el = document.getElementById(s);
     el.style.display = (s === id) ? 'block' : 'none';
   });
+  if (id === 'screen-title') renderDiffGrid();
 }
 
 /* ── 게임 시작 ── */
 function startGame(diff) {
+  if (!isUnlocked(diff)) { tryLocked(diff); return; }
   curDiff = diff; curIdx = 0; score = 0; correct = 0; answered = false;
   document.getElementById('scoreVal').textContent = 0;
   document.getElementById('correctVal').textContent = 0;
@@ -1187,11 +1282,24 @@ function nextCase() {
 function showResult() {
   const total = DATA[curDiff].length;
   const pct = Math.round(correct / total * 100);
+
+  // 클리어 조건: 57% 이상 (4개/7개 이상)
+  const passed = pct >= 57;
+  if (passed) markCleared(curDiff);
+
   let emoji, title, badge, desc;
   if (pct === 100)    { emoji='🏆'; title='완벽한 추리!';     badge='🥇 명탐정 수사관';  desc='모든 사건의 생략된 내용을 정확히 짐작했어요! 말, 행동, 경험, 상황 네 가지 탐정 스킬을 완벽하게 활용했어요.' }
   else if (pct >= 85) { emoji='🕵️'; title='훌륭한 수사!';    badge='🥈 베테랑 탐정';   desc='거의 모든 단서를 잡아냈네요! 놓친 부분만 더 연습하면 명탐정이에요.' }
-  else if (pct >= 57) { emoji='🔍'; title='좋은 추리였어요!'; badge='🥉 견습 탐정';    desc='단서를 찾는 감각이 있어요. 여러 단서를 연결하는 연습을 더 해봐요!' }
-  else                { emoji='📖'; title='더 연습해봐요!';   badge='📌 수습 탐정';    desc='단서 찾기 4가지 방법(말·행동·경험·상황)을 다시 복습해보세요!' }
+  else if (pct >= 57) { emoji='🔍'; title='클리어!';          badge='🥉 견습 탐정';    desc='단서를 찾는 감각이 있어요. 다음 난이도가 해금됐어요!' }
+  else                { emoji='📖'; title='다시 도전해봐요!'; badge='📌 수습 탐정';    desc='57% 이상 맞춰야 다음 난이도로 넘어갈 수 있어요. 한 번 더!' }
+
+  // 다음 단계 해금 메시지
+  const nextIdx = DIFF_ORDER.indexOf(curDiff) + 1;
+  const nextUnlockMsg = (passed && nextIdx < DIFF_ORDER.length && !isCleared(DIFF_ORDER[nextIdx-1] === curDiff ? DIFF_ORDER[nextIdx] : ''))
+    ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(63,185,80,.1);border:1px solid var(--green);border-radius:10px;font-size:13px;color:var(--green);font-weight:800;">
+        🔓 "${DIFF_ORDER[nextIdx]}" 난이도가 해금됐어요!
+       </div>`
+    : '';
 
   document.getElementById('rEmoji').textContent = emoji;
   document.getElementById('rTitle').textContent = title;
@@ -1199,7 +1307,8 @@ function showResult() {
   document.getElementById('rRank').innerHTML    = `
     <div class="r-rank-badge">${badge}</div>
     <div class="r-rank-desc">${desc}</div>
-    <div style="margin-top:10px;font-size:12px;color:var(--muted)">정답 ${correct}개 / 전체 ${total}개 (${pct}%) · ${curDiff} 난이도</div>`;
+    <div style="margin-top:10px;font-size:12px;color:var(--muted)">정답 ${correct}개 / 전체 ${total}개 (${pct}%) · ${curDiff} 난이도</div>
+    ${nextUnlockMsg}`;
   show('screen-result');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
